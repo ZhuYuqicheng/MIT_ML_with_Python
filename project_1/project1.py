@@ -1,6 +1,7 @@
 from string import punctuation, digits
 import numpy as np
 import random
+import pandas as pd
 
 # Part I
 
@@ -123,14 +124,14 @@ def perceptron(feature_matrix, labels, T):
     the feature matrix.
     """
     # Your code here
-    curr_theta = np.zeros(feature_matrix.shape[1])
-    curr_theta_0 = 0
+    theta = np.zeros(feature_matrix.shape[1])
+    theta_0 = 0
     for t in range(T):
         for i in get_order(feature_matrix.shape[0]):
             # Your code here
-            (curr_theta, curr_theta_0) = \
-                perceptron_single_step_update(feature_matrix[i,:], labels[i], curr_theta, curr_theta_0)
-    return (curr_theta, curr_theta_0)
+            (theta, theta_0) = \
+                perceptron_single_step_update(feature_matrix[i,:], labels[i], theta, theta_0)
+    return (theta, theta_0)
     raise NotImplementedError
 
 
@@ -164,6 +165,18 @@ def average_perceptron(feature_matrix, labels, T):
     find a sum and divide.
     """
     # Your code here
+    theta = np.zeros(feature_matrix.shape[1])
+    theta_0 = 0
+    theta_sum = np.zeros(feature_matrix.shape[1])
+    theta_0_sum = 0
+    for t in range(T):
+        for i in get_order(feature_matrix.shape[0]):
+            # Your code here
+            (theta, theta_0) = \
+                perceptron_single_step_update(feature_matrix[i,:], labels[i], theta, theta_0)
+            theta_sum += theta
+            theta_0_sum += theta_0
+    return (theta_sum/(T*feature_matrix.shape[0]), theta_0_sum/(T*feature_matrix.shape[0]))
     raise NotImplementedError
 
 
@@ -194,6 +207,14 @@ def pegasos_single_step_update(
     completed.
     """
     # Your code here
+    z = label*(np.dot(feature_vector, current_theta)+current_theta_0)
+    if z <= 1:
+        theta = (1-eta*L)*current_theta + eta*label*feature_vector
+        theta_0 = current_theta_0 + eta*label
+    else:
+        theta = (1-eta*L)*current_theta
+        theta_0 = current_theta_0
+    return (theta, theta_0)
     raise NotImplementedError
 
 
@@ -227,6 +248,15 @@ def pegasos(feature_matrix, labels, T, L):
     parameter, found after T iterations through the feature matrix.
     """
     # Your code here
+    theta = np.zeros(feature_matrix.shape[1])
+    theta_0 = 0
+    count = 0
+    for t in range(T):
+        for i in get_order(feature_matrix.shape[0]):
+            count += 1
+            (theta, theta_0) = \
+                pegasos_single_step_update(feature_matrix[i,:], labels[i], L, 1/np.sqrt(count), theta, theta_0)
+    return (theta, theta_0)
     raise NotImplementedError
 
 # Part II
@@ -250,6 +280,14 @@ def classify(feature_matrix, theta, theta_0):
     be considered a positive classification.
     """
     # Your code here
+    pred_vec = feature_matrix.dot(theta) + theta_0
+    result = []
+    for pred in pred_vec:
+        if pred > 0:
+            result.append(1)
+        else:
+            result.append(-1)
+    return np.array(result)
     raise NotImplementedError
 
 
@@ -286,7 +324,12 @@ def classifier_accuracy(
     accuracy of the trained classifier on the validation data.
     """
     # Your code here
-    raise NotImplementedError
+    (theta, theta_0) = classifier(train_feature_matrix, train_labels, **kwargs)
+    train_pred = classify(train_feature_matrix, theta, theta_0)
+    val_pred = classify(val_feature_matrix, theta, theta_0)
+    train_acc = accuracy(train_pred, train_labels)
+    val_acc = accuracy(val_pred, val_labels)
+    return (train_acc, val_acc)
 
 
 def extract_words(input_string):
@@ -310,11 +353,17 @@ def bag_of_words(texts):
     Feel free to change this code as guided by Problem 9
     """
     # Your code here
+    # sw_data = pd.read_csv("stopwords.txt").values.tolist()
+    # stop_words = [x[0] for x in sw_data]
+    with open("stopwords.txt",'r',encoding='utf8') as stoptext:
+        stop_words = stoptext.read()
+        stop_words = stop_words.replace("\n"," ").split()
+
     dictionary = {} # maps word to unique index
     for text in texts:
         word_list = extract_words(text)
         for word in word_list:
-            if word not in dictionary:
+            if word not in dictionary and word not in stop_words:
                 dictionary[word] = len(dictionary)
     return dictionary
 
@@ -338,7 +387,7 @@ def extract_bow_feature_vectors(reviews, dictionary):
         word_list = extract_words(text)
         for word in word_list:
             if word in dictionary:
-                feature_matrix[i, dictionary[word]] = 1
+                feature_matrix[i, dictionary[word]] += 1
     return feature_matrix
 
 
